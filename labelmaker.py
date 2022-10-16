@@ -17,9 +17,10 @@ def parse_args():
     p.add_argument('comport', help='Printer COM port.')
     p.add_argument('-i', '--image', help='Image file to print.')
     p.add_argument('-n', '--no-print', help='Only configure the printer and send the image but do not send print command.', action='store_true')
-    p.add_argument('-F', '--no-feed', help='Disable feeding at the end of the print (chaining).')
-    p.add_argument('-a', '--auto-cut', help='Enable auto-cutting (or print label boundary on e.g. PT-P300BT).')
-    p.add_argument('-m', '--end-margin', help='End margin (in dots).', default=0, type=int)
+    p.add_argument('-F', '--no-feed', help='Disable feeding at the end of the print (chaining).', action='store_true')
+    p.add_argument('-a', '--auto-cut', help='Enable auto-cutting (or print label boundary on e.g. PT-P300BT).', action='store_true')
+    p.add_argument('-m', '--mirror-print', help='Mirror print label.', action='store_true')
+    p.add_argument('-e', '--end-margin', help='End margin (in dots).', default=0, type=int)
     p.add_argument('-r', '--raw', help='Send the image to printer as-is without any pre-processing.', action='store_true')
     p.add_argument('-C', '--nocomp', help='Disable compression.', action='store_true')
     return p, p.parse_args()
@@ -34,7 +35,7 @@ def reset_printer(ser):
     # Enter raster graphics (PTCBP) mode
     ser.write(ptcbp.serialize_control('use_command_set', ptcbp.CommandSet.ptcbp))
 
-def configure_printer(ser, raster_lines, tape_dim, compress=True, chaining=False, auto_cut=False, end_margin=0):
+def configure_printer(ser, raster_lines, tape_dim, compress=True, chaining=False, auto_cut=False, mirror_print=False, end_margin=0):
     reset_printer(ser)
 
     type_, width, length = tape_dim
@@ -56,6 +57,8 @@ def configure_printer(ser, raster_lines, tape_dim, compress=True, chaining=False
         pm2 |= ptcbp.PageModeAdvanced.no_page_chaining
     if auto_cut:
         pm |= ptcbp.PageMode.auto_cut
+    if mirror_print:
+        pm |= ptcbp.PageMode.mirror
 
     # Set print chaining off (0x8) or on (0x0)
     ser.write(ptcbp.serialize_control('set_page_mode_advanced', pm2))
@@ -91,6 +94,7 @@ def do_print_job(ser, args, data):
                                           status.tape_length),
                       chaining=args.no_feed,
                       auto_cut=args.auto_cut,
+                      mirror_print=args.mirror_print,
                       end_margin=args.end_margin,
                       compress=not args.nocomp)
 
@@ -121,6 +125,7 @@ def do_print_job(ser, args, data):
 
 def main():
     p, args = parse_args()
+    print(args)
 
     data = None
     if args.image is None:
